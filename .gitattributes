@@ -1,0 +1,4 @@
+# Skrypty i konfiguracja zawsze z końcami linii LF (Linux) – inaczej bash na VM się wywali
+* text=auto eol=lf
+*.png binary
+*.jpg binary

@@ -1,0 +1,20 @@
+# Sekrety – NIGDY do repo
+passwords.yml
+*-openrc.sh
+clouds.yaml
+*.pem
+id_*
+.env
+
+# Duże pliki
+*.iso
+*.img
+*.qcow2
+*.vmdk
+
+# Logi i śmieci
+*.log
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

@@ -1,0 +1,19 @@
+# Netplan dla VM all-in-one.
+# Popraw: nazwy kart (ip -br a), adres IP, bramę (Gateway z NAT Settings VMnet8).
+network:
+  version: 2
+  ethernets:
+    ens33:                      # karta 1 – management (API, Horizon, SSH)
+      dhcp4: false
+      addresses:
+        - 192.168.180.10/24
+      routes:
+        - to: default
+          via: 192.168.180.2
+      nameservers:
+        addresses: [192.168.180.2, 1.1.1.1]
+    ens34:                      # karta 2 – sieć zewnętrzna Neutrona, BEZ IP
+      dhcp4: false
+      dhcp6: false
+      accept-ra: false
+      link-local: []

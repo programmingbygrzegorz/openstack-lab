@@ -11,13 +11,23 @@ Cały OpenStack na **jednej VM**. Kolejność: krok 1 → 6.
 3. Kliknij **NAT Settings** i zapisz **Gateway IP** (zwykle `.2`, np. `192.168.180.2`).
 4. Kliknij **DHCP Settings**: DHCP rozdaje zwykle `.128–.254`. Adresów poniżej `.128` używamy statycznie.
 
-Dalej przykłady zakładają podsieć `192.168.180.0/24`. **Podmień na swoją.**
+![Virtual Network Editor – VMnet8 (NAT) z podsiecią 192.168.180.0](docs/img/01-virtual-network-editor.png)
+
+> Tylko odczytaj wartości i zamknij okno przyciskiem **Cancel**. Zmiana bramy lub DHCP odetnie inne VM-ki w tej sieci.
+
+Ten lab używa podsieci VMnet8 `192.168.180.0/24` i wszystkie pliki są już pod nią ustawione.
+Jeśli Twoja VMnet8 ma inną podsieć, zamień `192.168.180.` we wszystkich plikach na swoją.
 
 | Adres | Do czego |
 |---|---|
 | `192.168.180.2` | brama VMware NAT |
 | `192.168.180.10` | VM z OpenStackiem (Horizon, API) |
-| `192.168.180.50–99` | pula floating IP dla instancji OpenStacka |
+| `192.168.180.51–55` | **zajęte** – węzły k3s (Kubernetes) |
+| `192.168.180.100–120` | pula floating IP dla instancji OpenStacka |
+| `192.168.180.128–254` | DHCP VMware – nie używać statycznie |
+
+> ⚠️ Jeśli w tej samej sieci VMnet8 masz inne VM-ki (np. Kubernetes), sprawdź, że nie używają
+> adresów `.10` ani `.100–120` – także w pulach load balancera (MetalLB).
 
 ---
 
@@ -36,7 +46,41 @@ Dalej przykłady zakładają podsieć `192.168.180.0/24`. **Podmień na swoją.*
 | Karta sieciowa 2 | **NAT (VMnet8)** – sieć zewnętrzna Neutrona, **bez IP** |
 | Procesor | ✅ **Virtualize Intel VT-x/EPT or AMD-V/RVI** |
 
-> Obie karty są w tej samej sieci NAT. Dzięki temu floating IP instancji (`192.168.180.50+`) będą osiągalne bezpośrednio z Windowsa (ping, SSH).
+> Obie karty są w tej samej sieci NAT. Dzięki temu floating IP instancji (`192.168.180.100+`) będą osiągalne bezpośrednio z Windowsa (ping, SSH).
+
+**Kolejność w kreatorze:**
+
+1. *Custom (advanced)* → *Hardware compatibility*: domyślne.
+2. *Installer disc image file (iso)*: wskaż ISO Ubuntu Server 24.04.
+3. *Name*: `openstack-aio` (taką samą nazwę daj potem jako hostname w Ubuntu).
+4. *Processors*: 1 × 8 rdzeni, *Memory*: 16384 MB, *Network*: NAT.
+5. *Disk*: **Create a new virtual disk**, SCSI, **100 GB**, ☐ *Allocate all disk space now* (puste – plik rośnie stopniowo), **Store virtual disk as a single file**.
+6. Na ostatnim ekranie **nie klikaj od razu Finish** – najpierw **Customize Hardware…**
+
+**Customize Hardware:**
+
+- **Processors** → zaznacz ☑ **Virtualize Intel VT-x/EPT or AMD-V/RVI** (pozostałe dwa pola puste):
+
+  ![Processors: 1 procesor × 8 rdzeni, zaznaczone Virtualize Intel VT-x/EPT](docs/img/02-procesor-vtx.png)
+
+- **Add… → Hard Disk** → SCSI → nowy dysk **50 GB**, single file, bez prealokacji (dla Cindera).
+- **Add… → Network Adapter** → **NAT** (druga karta, dla floating IP).
+- *Sound Card* możesz usunąć (**Remove**) – serwer jej nie potrzebuje.
+
+> ⚠️ Sprawdź, czy na liście urządzeń jest **Hard Disk 100 GB**. Jeśli go brakuje (zależnie od wersji VMware pojawia się
+> dopiero po *Finish*), dodaj go przez **Add… → Hard Disk**. Bez dysku Ubuntu się nie zainstaluje.
+
+Docelowa lista urządzeń:
+
+```
+Memory              16 GB
+Processors          8   (VT-x ☑)
+Hard Disk (SCSI)    100 GB
+New Hard Disk       50 GB
+CD/DVD (SATA)       ubuntu-24.04-live-server-amd64.iso
+Network Adapter     NAT
+Network Adapter 2   NAT
+```
 
 ---
 

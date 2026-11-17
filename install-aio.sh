@@ -13,7 +13,7 @@ MGMT_IP="192.168.180.10"        # IP na MGMT_IF
 # Sieć zewnętrzna = podsieć VMnet8 (NAT). Pula floating IP poza DHCP VMware.
 EXT_NET_CIDR="192.168.180.0/24"
 EXT_NET_GATEWAY="192.168.180.2"
-EXT_NET_RANGE="start=192.168.180.50,end=192.168.180.99"
+EXT_NET_RANGE="start=192.168.180.100,end=192.168.180.120"  # .51-.55 zajmuje k3s!
 
 CINDER_DISK="/dev/sdb"          # pusty dysk dla Cindera (LVM); "" = bez Cindera
 KOLLA_BRANCH=""                 # "" = najnowsza gałąź stable/*, albo np. "stable/2025.2"

@@ -7,7 +7,7 @@
 
 # ---------- ZMIENNE DO POPRAWIENIA -------------------------------------------
 MGMT_IF="ens33"                 # karta z IP (management, API, Horizon)
-EXT_IF="ens34"                  # karta BEZ IP (sieć zewnętrzna Neutrona)
+EXT_IF="ens37"                  # karta BEZ IP (sieć zewnętrzna Neutrona)
 MGMT_IP="192.168.180.10"        # IP na MGMT_IF
 
 # Sieć zewnętrzna = podsieć VMnet8 (NAT). Pula floating IP poza DHCP VMware.
@@ -36,6 +36,8 @@ step "1/9 Sprawdzam środowisko"
 . /etc/os-release
 [[ "$ID" == "ubuntu" ]] || die "skrypt jest dla Ubuntu (masz: $PRETTY_NAME)"
 echo "System: $PRETTY_NAME"
+[[ "$VERSION_ID" == "24.04" ]] \
+  || die "Kolla-Ansible wspiera Ubuntu 24.04, a masz $VERSION_ID – zainstaluj VM z ISO 24.04"
 
 ip link show "$MGMT_IF" >/dev/null 2>&1 || die "brak karty $MGMT_IF (sprawdź: ip -br a)"
 ip link show "$EXT_IF"  >/dev/null 2>&1 || die "brak karty $EXT_IF (sprawdź: ip -br a)"
@@ -114,6 +116,8 @@ source "$VENV/bin/activate"
 pip install -U pip wheel
 pip install "git+https://opendev.org/openstack/kolla-ansible@${KOLLA_BRANCH}"
 command -v ansible-playbook >/dev/null || pip install "ansible-core"
+# AIO: Ansible używa Pythona z venv, więc tu muszą być Docker SDK i dbus-python
+pip install docker dbus-python
 ansible --version | head -1
 
 sudo mkdir -p /etc/kolla
@@ -124,7 +128,14 @@ fi
 cp "$VENV/share/kolla-ansible/ansible/inventory/all-in-one" "$INVENTORY"
 [[ -f /etc/kolla/globals.yml.example ]] || cp /etc/kolla/globals.yml /etc/kolla/globals.yml.example
 
-kolla-ansible install-deps
+# Ansible Galaxy bywa wolne – dłuższy timeout i kilka podejść
+export ANSIBLE_GALAXY_SERVER_TIMEOUT=300
+for try in 1 2 3; do
+  kolla-ansible install-deps && break
+  [[ $try -eq 3 ]] && die "install-deps nie powiodło się 3 razy (Ansible Galaxy) – uruchom skrypt ponownie później"
+  echo "install-deps: próba $try nieudana, ponawiam za 30 s..."
+  sleep 30
+done
 kolla-genpwd     # uzupełnia tylko puste hasła, istniejących nie zmienia
 
 # ---------- 6. globals.yml ---------------------------------------------------

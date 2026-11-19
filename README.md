@@ -52,6 +52,8 @@ Jeśli Twoja VMnet8 ma inną podsieć, zamień `192.168.180.` we wszystkich plik
 
 1. *Custom (advanced)* → *Hardware compatibility*: domyślne.
 2. *Installer disc image file (iso)*: wskaż ISO Ubuntu Server 24.04.
+
+   > ⚠️ **Dokładnie 24.04, nie nowsze (np. 26.04).** Kolla-Ansible 2026.1 i 2026.2 wspierają z Ubuntu tylko 24.04 ([support matrix](https://docs.openstack.org/kolla-ansible/latest/user/support-matrix.html)). Na 26.04 instalacja odpadnie na `prechecks`. Wersję sprawdzisz w VM: `grep PRETTY /etc/os-release`.
 3. *Name*: `openstack-aio` (taką samą nazwę daj potem jako hostname w Ubuntu).
 4. *Processors*: 1 × 8 rdzeni, *Memory*: 16384 MB, *Network*: NAT.
 5. *Disk*: **Create a new virtual disk**, SCSI, **100 GB**, ☐ *Allocate all disk space now* (puste – plik rośnie stopniowo), **Store virtual disk as a single file**.
@@ -183,14 +185,29 @@ Kliknij **OK** (możesz zaznaczyć *Do not show this hint again*). Niczego nie z
 
 - Język angielski, standardowa instalacja **Ubuntu Server** (nie minimized).
 - Sieć: na razie zostaw DHCP, skonfigurujemy ją w kroku 4.
-- Dysk: **zaznacz tylko dysk 100 GB**. Odznacz LVM albo przy LVM **rozciągnij volume na cały dysk** (instalator domyślnie daje tylko część!).
-- ✅ **Install OpenSSH server**.
-- Użytkownik np. `student`.
+- Dysk: **zaznacz tylko dysk 100 GB** (`sda`, nie `sdb` 50 GB – ten zostaje pusty dla Cindera). LVM może zostać włączone.
+  Szyfrowania LUKS **nie zaznaczaj** – w labie wymagałoby hasła przy każdym starcie VM.
+
+  ![Instalator Ubuntu: cały dysk /dev/sda 100 GB, LVM włączone, bez szyfrowania LUKS](docs/img/07-ubuntu-dysk-lvm.png)
+
+- ⚠️ **Pułapka LVM:** w podsumowaniu `/` ma tylko **~49 GB**, a druga połowa dysku leży jako „dostępna przestrzeń” w `ubuntu-vg`.
+  Kliknij `ubuntu-lv` → **Edytuj** → w polu rozmiaru wpisz maksimum (ok. **97.99G**) → Zapisz. Uważaj, żeby przy okazji nie zmienić nazwy woluminu.
+
+  ![Pułapka: / = 48.996G, a w ubuntu-vg zostaje 49 GB wolnego](docs/img/08-ubuntu-lvm-pulapka-49g.png)
+- **Profil:** nazwa serwera `openstack-aio`, użytkownik np. `student`.
+- **Ubuntu Pro:** *Skip for now*.
+- ✅ **Install OpenSSH server** (bez tego nie skopiujesz plików ani nie zalogujesz się przez SSH).
+- **Snapy:** nic nie zaznaczaj – zwłaszcza **nie** Dockera (Kolla zainstaluje własnego).
+
+> 💡 **Instalujesz ponownie, a VM od razu startuje stary system?** Esc zwykle nie zdąży.
+> Wyłącz VM, w *Settings → CD/DVD* wskaż ISO i zaznacz *Connect at power on*, potem
+> **VM → Power → Power On to Firmware → Boot Manager → EFI VMware Virtual SATA CDROM Drive**.
 
 Po instalacji zaloguj się i sprawdź:
 
 ```bash
-ip -br a                          # nazwy kart, np. ens33 i ens34
+grep PRETTY /etc/os-release       # MUSI być Ubuntu 24.04 (nie 26.04!)
+ip -br a                          # nazwy kart, np. ens33 i ens37
 lsblk                             # drugi dysk, np. sdb 50G
 egrep -c '(vmx|svm)' /proc/cpuinfo  # > 0 = nested KVM działa
 df -h /                           # czy / ma ~95 GB
@@ -205,27 +222,41 @@ sudo lvextend -r -l +100%FREE /dev/ubuntu-vg/ubuntu-lv
 
 ## Krok 4. Sieć (netplan)
 
-Skopiuj plik `netplan-aio.yaml` z tego folderu, popraw nazwy kart i adresy, potem:
+Po instalacji obie karty mają tymczasowe adresy z DHCP (np. `ens33` = `.138`, `ens37` = `.139`).
+
+**1. Skopiuj pliki – w PowerShellu na Windowsie** (na tymczasowy adres `ens33`):
+
+```powershell
+scp C:\Projekty\OpenStack\install-aio.sh C:\Projekty\OpenStack\netplan-aio.yaml student@192.168.180.138:~
+```
+
+> ⚠️ `scp` uruchamiasz **na Windowsie**, nie w sesji SSH na VM. Linux nie zna ścieżki `C:\...`
+> i zwraca `Could not resolve hostname c`.
+
+**2. Ustaw stały adres – najlepiej w konsoli VMware** (przez SSH połączenie się zawiesi, bo zmienia się IP):
 
 ```bash
-sudo cp netplan-aio.yaml /etc/netplan/50-cloud-init.yaml
+sudo cp /etc/netplan/50-cloud-init.yaml ~/50-cloud-init.yaml.bak   # kopia zapasowa
+sudo cp ~/netplan-aio.yaml /etc/netplan/50-cloud-init.yaml          # celowo nadpisujemy
 sudo chmod 600 /etc/netplan/50-cloud-init.yaml
 echo 'network: {config: disabled}' | sudo tee /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
 sudo netplan apply
-ip -br a     # ens33 = 192.168.180.10, ens34 = UP bez IP
+ip -br a     # ens33 = 192.168.180.10, ens37 = UP bez IP
+ping -c 3 google.com
 ```
 
-Od teraz łącz się z Windowsa przez SSH (wygodniej niż konsola VMware):
+Dlaczego nadpisujemy, a nie dodajemy nowy plik: netplan **łączy** wszystkie pliki z `/etc/netplan/`,
+więc stary plik dalej dawałby `ens37` adres z DHCP. Linia z `cloud-init` blokuje mu odtworzenie
+starej konfiguracji przy restarcie.
+
+**3. Od teraz łącz się z Windowsa przez SSH** (wygodniej niż konsola VMware):
 
 ```powershell
 ssh student@192.168.180.10
 ```
 
-Pliki z Windowsa na VM kopiujesz tak:
-
-```powershell
-scp C:\Projekty\OpenStack\*.sh C:\Projekty\OpenStack\netplan-aio.yaml student@192.168.180.10:~
-```
+> Po reinstalacji systemu SSH zgłosi `REMOTE HOST IDENTIFICATION HAS CHANGED` (nowy system = nowy klucz).
+> Usuń stary wpis: `ssh-keygen -R 192.168.180.10`.
 
 > 💡 Teraz zrób **snapshot VM** (VM → Snapshot → Take Snapshot, „czysty Ubuntu”). Jak coś się zepsuje, wracasz w 10 sekund.
 
@@ -236,13 +267,26 @@ scp C:\Projekty\OpenStack\*.sh C:\Projekty\OpenStack\netplan-aio.yaml student@19
 Na VM:
 
 ```bash
+tmux new -s kolla           # sesja, która przeżyje zerwanie SSH
 sed -i 's/\r$//' *.sh       # usuwa windowsowe końce linii, na wszelki wypadek
 chmod +x *.sh
 nano install-aio.sh         # popraw zmienne na górze pliku (karty, IP, sieć)
 ./install-aio.sh
 ```
 
-Trwa to **30–60 minut** (pobieranie kontenerów). Skrypt kończy się wypisaniem adresu Horizon i hasła admina.
+Trwa to **40–90 minut** (pobieranie ok. 5–8 GB kontenerów, na dysku zajmą ok. 15–20 GB). Skrypt kończy się wypisaniem adresu Horizon i hasła admina.
+
+**Po co `tmux`?** Bez niego zerwane połączenie SSH (uśpiony laptop, zamknięte okno) zabija instalację.
+W tmux skrypt działa dalej. **Ctrl+B, potem D** – odłączasz się; `tmux attach -t kolla` – wracasz.
+
+Postęp i błędy:
+
+```bash
+grep '===' ~/install-aio.log | tail -n 3    # na którym kroku (x/9)
+tail -n 30 ~/install-aio.log                # ostatnie linie
+```
+
+Skrypt można bezpiecznie uruchomić ponownie po błędzie – pomija to, co już zrobione.
 
 > 💡 Po udanej instalacji zrób **drugi snapshot** („OpenStack działa”).
 
@@ -285,7 +329,16 @@ kolla-ansible mariadb_recovery -i ~/all-in-one
 | Objaw | Przyczyna / rozwiązanie |
 |---|---|
 | VMware: *„Virtualized Intel VT-x/EPT is not supported”* | Hyper-V/VBS w Windows – patrz **Krok 2b** (jak wyłączyć, zagrożenia, jak cofnąć). |
-| `prechecks` wywala się na interfejsie | Zła nazwa karty w `install-aio.sh` albo ens34 nie jest `UP`. |
+| Skrypt: *„Kolla-Ansible wspiera Ubuntu 24.04, a masz 26.04”* | Zainstalowano za nowe Ubuntu. Downgrade nie istnieje – przeinstaluj VM z ISO `ubuntu-24.04.x-live-server-amd64.iso` (patrz Krok 3). |
+| VM startuje stary system zamiast instalatora z ISO | **VM → Power → Power On to Firmware → Boot Manager → CDROM** (Krok 3). |
+| `scp`: `Could not resolve hostname c` | `scp` uruchomiony w VM zamiast w PowerShellu na Windowsie. Wpisz `exit` i powtórz. |
+| `REMOTE HOST IDENTIFICATION HAS CHANGED` | System przeinstalowany, ma nowy klucz SSH: `ssh-keygen -R <adres>` na Windowsie. |
+| SSH zawiesza się po `netplan apply` | Normalne – VM zmieniła adres. Połącz się na `192.168.180.10`. |
+| `ens37` ma adres IPv4 po netplanie | Stary plik netplan dalej działa albo nie było `netplan apply`. Sprawdź `ls /etc/netplan/`, potem `sudo reboot`. |
+| `Failed to install Ansible collections ... The read operation timed out` | Ansible Galaxy nie odpowiedziało na czas (problem serwera, nie labu). Uruchom `./install-aio.sh` ponownie – skrypt ma dłuższy timeout i 3 podejścia, a już zrobione kroki pomija. |
+| `prechecks`: *Checking docker SDK version* → `No module named 'docker'` | Brak Docker SDK w venv: `source ~/kolla-venv/bin/activate && pip install docker dbus-python`, potem ponownie `./install-aio.sh` (aktualna wersja skryptu robi to sama). |
+| Instalacja przerwana w połowie | Skrypt można uruchomić ponownie – nie nadpisze haseł ani grupy LVM `cinder-volumes`. |
+| `prechecks` wywala się na interfejsie | Zła nazwa karty w `install-aio.sh` albo ens37 nie jest `UP`. |
 | Instancja w stanie **ERROR** | `openstack server show <nazwa>` (pole *fault*), logi: `sudo less /var/log/kolla/nova/nova-compute.log`. |
 | Nie ma pingu do floating IP | Security group bez reguły ICMP/SSH (init-runonce je dodaje do projektu admin), albo zła pula w `EXT_*`. |
 | Brak miejsca | `df -h`; obrazy Dockera zajmują ~20–30 GB. |

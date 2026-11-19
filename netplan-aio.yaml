@@ -12,7 +12,7 @@ network:
           via: 192.168.180.2
       nameservers:
         addresses: [192.168.180.2, 1.1.1.1]
-    ens34:                      # karta 2 – sieć zewnętrzna Neutrona, BEZ IP
+    ens37:                      # karta 2 – sieć zewnętrzna Neutrona, BEZ IP
       dhcp4: false
       dhcp6: false
       accept-ra: false

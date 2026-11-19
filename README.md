@@ -337,6 +337,7 @@ kolla-ansible mariadb_recovery -i ~/all-in-one
 | `ens37` ma adres IPv4 po netplanie | Stary plik netplan dalej działa albo nie było `netplan apply`. Sprawdź `ls /etc/netplan/`, potem `sudo reboot`. |
 | `Failed to install Ansible collections ... The read operation timed out` | Ansible Galaxy nie odpowiedziało na czas (problem serwera, nie labu). Uruchom `./install-aio.sh` ponownie – skrypt ma dłuższy timeout i 3 podejścia, a już zrobione kroki pomija. |
 | `prechecks`: *Checking docker SDK version* → `No module named 'docker'` | Brak Docker SDK w venv: `source ~/kolla-venv/bin/activate && pip install docker dbus-python`, potem ponownie `./install-aio.sh` (aktualna wersja skryptu robi to sama). |
+| `prechecks`: *Kolla images from quay.io/openstack.kolla namespace are meant only for testing purposes* | Kolla 2026.x wymaga świadomej zgody na obrazy z CI projektu: flaga `--use-test-images` przy `prechecks`, `pull`, `deploy` (aktualny skrypt ją dodaje). Na produkcji: własny rejestr / `kolla-build`. |
 | Instalacja przerwana w połowie | Skrypt można uruchomić ponownie – nie nadpisze haseł ani grupy LVM `cinder-volumes`. |
 | `prechecks` wywala się na interfejsie | Zła nazwa karty w `install-aio.sh` albo ens37 nie jest `UP`. |
 | Instancja w stanie **ERROR** | `openstack server show <nazwa>` (pole *fault*), logi: `sudo less /var/log/kolla/nova/nova-compute.log`. |

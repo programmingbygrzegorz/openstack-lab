@@ -165,17 +165,21 @@ EOF
 cat /etc/kolla/globals.yml
 
 # ---------- 7. Wdrożenie -----------------------------------------------------
+# Obrazy z quay.io/openstack.kolla to obrazy z CI projektu – Kolla 2026.x wymaga
+# świadomej zgody. Do labu OK; na produkcji: własny rejestr albo kolla-build.
+TEST_IMAGES="--use-test-images"
+
 step "7/9 bootstrap-servers (Docker, użytkownicy, sysctl)"
 kolla-ansible bootstrap-servers -i "$INVENTORY"
 
 step "7/9 prechecks"
-kolla-ansible prechecks -i "$INVENTORY"
+kolla-ansible prechecks -i "$INVENTORY" $TEST_IMAGES
 
 step "7/9 pull (pobieranie obrazów – najdłuższy etap)"
-kolla-ansible pull -i "$INVENTORY"
+kolla-ansible pull -i "$INVENTORY" $TEST_IMAGES
 
 step "7/9 deploy"
-kolla-ansible deploy -i "$INVENTORY"
+kolla-ansible deploy -i "$INVENTORY" $TEST_IMAGES
 
 step "7/9 post-deploy (admin-openrc.sh, clouds.yaml)"
 kolla-ansible post-deploy -i "$INVENTORY"

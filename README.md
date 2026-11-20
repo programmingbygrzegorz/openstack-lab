@@ -305,6 +305,8 @@ Skrypt można bezpiecznie uruchomić ponownie po błędzie – pomija to, co ju�
 
 - **Horizon (GUI):** `http://192.168.180.10`, login `admin`, hasło wypisze skrypt
   (albo: `grep keystone_admin_password /etc/kolla/passwords.yml`).
+
+  ![Strona logowania Horizon pod http://192.168.180.10](docs/img/09-horizon-logowanie.png)
 - **CLI:**
   ```bash
   source ~/kolla-venv/bin/activate

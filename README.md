@@ -279,6 +279,15 @@ Trwa to **40–90 minut** (pobieranie ok. 5–8 GB kontenerów, na dysku zajmą 
 **Po co `tmux`?** Bez niego zerwane połączenie SSH (uśpiony laptop, zamknięte okno) zabija instalację.
 W tmux skrypt działa dalej. **Ctrl+B, potem D** – odłączasz się; `tmux attach -t kolla` – wracasz.
 
+Żeby połączenie w ogóle się nie zrywało:
+
+- **Keepalive SSH** (raz, w PowerShellu na Windowsie) – klient co 30 s wysyła sygnał „jestem”:
+  ```powershell
+  Add-Content $env:USERPROFILE\.ssh\config "`nHost 192.168.180.*`n    ServerAliveInterval 30`n    ServerAliveCountMax 10"
+  ```
+- **Windows nie może zasnąć** w trakcie instalacji – uśpienie hosta wstrzymuje VM i zrywa wszystkie sesje.
+  Ustawienia → System → Zasilanie → *uśpij po*: **Nigdy** (po instalacji możesz przywrócić).
+
 Postęp i błędy:
 
 ```bash

@@ -314,7 +314,7 @@ Skrypt można bezpiecznie uruchomić ponownie po błędzie – pomija to, co ju�
   openstack service list
   ```
 - Ćwiczenia krok po kroku: **`cwiczenia.md`**.
-- Plan nauki na 5 dni (OpenStack + Linux): **[`docs/plan-nauki.md`](docs/plan-nauki.md)**.
+- Plan nauki na 5 dni (Linux + OpenStack): **[`docs/plan-nauki.md`](docs/plan-nauki.md)**.
 
 ---
 
